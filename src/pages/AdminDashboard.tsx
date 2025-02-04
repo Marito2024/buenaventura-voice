@@ -27,14 +27,45 @@ const AdminDashboard = () => {
   ];
 
   const generateBingoCard = () => {
-    const numbers: number[] = [];
-    while (numbers.length < 15) {
-      const num = Math.floor(Math.random() * 90) + 1;
-      if (!numbers.includes(num)) {
-        numbers.push(num);
+    const numbers: (number | null)[][] = Array(3).fill(null).map(() => Array(9).fill(null));
+    const usedNumbers = new Set<number>();
+    
+    // Generate numbers for each row
+    for (let row = 0; row < 3; row++) {
+      // Each row should have exactly 5 numbers
+      let numbersInRow = 0;
+      while (numbersInRow < 5) {
+        // For each column, numbers must be within specific ranges
+        for (let col = 0; col < 9 && numbersInRow < 5; col++) {
+          if (numbers[row][col] === null && Math.random() < 0.5) {
+            const min = col * 10;
+            const max = col === 8 ? 90 : (col + 1) * 10 - 1;
+            let num;
+            do {
+              num = Math.floor(Math.random() * (max - min + 1)) + min;
+            } while (usedNumbers.has(num));
+            
+            numbers[row][col] = num;
+            usedNumbers.add(num);
+            numbersInRow++;
+          }
+        }
       }
     }
-    return numbers.sort((a, b) => a - b);
+
+    // Sort numbers within each column
+    for (let col = 0; col < 9; col++) {
+      const columnNumbers = numbers.map(row => row[col]).filter(n => n !== null) as number[];
+      columnNumbers.sort((a, b) => a - b);
+      let idx = 0;
+      for (let row = 0; row < 3; row++) {
+        if (numbers[row][col] !== null) {
+          numbers[row][col] = columnNumbers[idx++];
+        }
+      }
+    }
+
+    return numbers;
   };
 
   const generateCards = () => {
@@ -54,8 +85,9 @@ const AdminDashboard = () => {
             <style>
               body { background-color: ${selectedColor}; padding: 20px; font-family: Arial, sans-serif; }
               .card { background: white; margin: 10px; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-              .numbers { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 10px; }
-              .number { background: #f0f0f0; padding: 8px; text-align: center; border-radius: 4px; }
+              .numbers { display: grid; grid-template-columns: repeat(9, 1fr); gap: 5px; margin-top: 10px; }
+              .number { background: #f0f0f0; padding: 8px; text-align: center; border-radius: 4px; height: 40px; display: flex; align-items: center; justify-content: center; }
+              .empty { background: transparent; }
             </style>
           </head>
           <body>
@@ -63,9 +95,11 @@ const AdminDashboard = () => {
               <div class="card">
                 <h3>Serie: ${card.serial}</h3>
                 <div class="numbers">
-                  ${card.numbers.map(num => `
-                    <div class="number">${num}</div>
-                  `).join('')}
+                  ${card.numbers.map(row => 
+                    row.map(num => `
+                      <div class="number ${num === null ? 'empty' : ''}">${num ?? ''}</div>
+                    `).join('')
+                  ).join('')}
                 </div>
               </div>
             `).join('')}
