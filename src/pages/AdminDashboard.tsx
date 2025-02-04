@@ -1,9 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 const AdminDashboard = () => {
   const [quantity, setQuantity] = useState(1);
@@ -12,6 +13,10 @@ const AdminDashboard = () => {
   const [currentNumber, setCurrentNumber] = useState<number | null>(null);
   const [numberHistory, setNumberHistory] = useState<number[]>([]);
   const [usedNumbers, setUsedNumbers] = useState<number[]>([]);
+  const [isRunning, setIsRunning] = useState(false);
+  const [gameEnded, setGameEnded] = useState(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [prizeDescription, setPrizeDescription] = useState("");
 
   const colors = [
     { name: "Rojo", value: "#FF0000" },
@@ -77,6 +82,7 @@ const AdminDashboard = () => {
 
   const drawNumber = () => {
     if (usedNumbers.length === 90) {
+      stopGame();
       toast({
         title: "Juego Completado",
         description: "Ya han salido todos los números",
@@ -90,7 +96,7 @@ const AdminDashboard = () => {
     } while (usedNumbers.includes(newNumber));
 
     setCurrentNumber(newNumber);
-    setUsedNumbers([...usedNumbers, newNumber]);
+    setUsedNumbers(prev => [...prev, newNumber]);
     setNumberHistory(prev => [newNumber, ...prev].slice(0, 10));
 
     toast({
@@ -98,6 +104,42 @@ const AdminDashboard = () => {
       description: `Ha salido el número: ${newNumber}`,
     });
   };
+
+  const startGame = () => {
+    setIsRunning(true);
+    setGameEnded(false);
+    intervalRef.current = setInterval(drawNumber, 3000); // Saca un número cada 3 segundos
+  };
+
+  const pauseGame = () => {
+    setIsRunning(false);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+  };
+
+  const stopGame = () => {
+    pauseGame();
+    setGameEnded(true);
+  };
+
+  const handlePrizeSubmit = () => {
+    if (prizeDescription.trim()) {
+      toast({
+        title: "Premio Registrado",
+        description: prizeDescription,
+      });
+      setPrizeDescription("");
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-100 to-purple-200 p-8">
@@ -111,9 +153,23 @@ const AdminDashboard = () => {
             <div className="text-6xl font-bold text-purple-600 bg-white p-8 rounded-lg shadow-lg">
               {currentNumber || "--"}
             </div>
-            <Button onClick={drawNumber} className="w-full md:w-auto">
-              Sacar Número
-            </Button>
+            <div className="flex gap-4">
+              {!isRunning && !gameEnded && (
+                <Button onClick={startGame} className="w-full md:w-auto">
+                  Comenzar
+                </Button>
+              )}
+              {isRunning && (
+                <Button onClick={pauseGame} variant="secondary" className="w-full md:w-auto">
+                  Pausar
+                </Button>
+              )}
+              {!gameEnded && (
+                <Button onClick={stopGame} variant="destructive" className="w-full md:w-auto">
+                  Terminar
+                </Button>
+              )}
+            </div>
             <div className="w-full">
               <h3 className="text-lg font-medium mb-2">Últimos 10 números:</h3>
               <div className="flex flex-wrap gap-2">
@@ -126,6 +182,24 @@ const AdminDashboard = () => {
             </div>
           </div>
         </Card>
+
+        {/* Panel de premios */}
+        {gameEnded && (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Registrar Premio</h2>
+            <div className="flex gap-4">
+              <Input
+                value={prizeDescription}
+                onChange={(e) => setPrizeDescription(e.target.value)}
+                placeholder="Descripción del premio..."
+                className="flex-1"
+              />
+              <Button onClick={handlePrizeSubmit}>
+                Registrar Premio
+              </Button>
+            </div>
+          </Card>
+        )}
 
         {/* Panel de generación de cartones */}
         <Card className="p-6">
