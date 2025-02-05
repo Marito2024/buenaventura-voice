@@ -38,7 +38,7 @@ const UserDashboard = () => {
         {/* Panel de números actuales */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">Número Actual</h2>
-          <div className="text-6xl font-bold text-purple-600 bg-white p-8 rounded-lg shadow-lg mb-4">
+          <div className="text-6xl font-bold text-purple-600 bg-white p-8 rounded-lg shadow-lg mb-4 text-center">
             {currentNumber || "--"}
           </div>
           <div className="mt-4">
@@ -56,25 +56,27 @@ const UserDashboard = () => {
         {/* Cartones del usuario */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">Mis Cartones</h2>
-          <div className="grid grid-cols-9 gap-2">
-            {bingoCard.map((row, rowIndex) => 
-              row.map((cell, colIndex) => (
-                <button
-                  key={`${rowIndex}-${colIndex}`}
-                  onClick={() => handleNumberClick(rowIndex, colIndex)}
-                  className={`h-12 flex items-center justify-center rounded ${
-                    cell.value === null 
-                      ? 'bg-transparent cursor-default'
-                      : cell.marked
-                        ? 'bg-green-500 text-white'
-                        : 'bg-gray-100 hover:bg-gray-200'
-                  }`}
-                  disabled={cell.value === null}
-                >
-                  {cell.value}
-                </button>
-              ))
-            )}
+          <div className="max-w-md mx-auto">
+            <div className="grid grid-cols-9 gap-1">
+              {bingoCard.map((row, rowIndex) => 
+                row.map((cell, colIndex) => (
+                  <button
+                    key={`${rowIndex}-${colIndex}`}
+                    onClick={() => handleNumberClick(rowIndex, colIndex)}
+                    className={`h-8 flex items-center justify-center rounded text-sm ${
+                      cell.value === null 
+                        ? 'bg-transparent cursor-default'
+                        : cell.marked
+                          ? 'bg-green-500 text-white'
+                          : 'bg-gray-100 hover:bg-gray-200'
+                    }`}
+                    disabled={cell.value === null}
+                  >
+                    {cell.value}
+                  </button>
+                ))
+              )}
+            </div>
           </div>
         </Card>
       </div>

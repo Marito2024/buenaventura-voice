@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 const AdminDashboard = () => {
   const [quantity, setQuantity] = useState(1);
@@ -17,6 +16,8 @@ const AdminDashboard = () => {
   const [gameEnded, setGameEnded] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const [prizeDescription, setPrizeDescription] = useState("");
+  const [startSeries, setStartSeries] = useState("0000");
+  const [endSeries, setEndSeries] = useState("9999");
 
   const colors = [
     { name: "Rojo", value: "#FF0000" },
@@ -30,39 +31,31 @@ const AdminDashboard = () => {
     const numbers: (number | null)[][] = Array(3).fill(null).map(() => Array(9).fill(null));
     const usedNumbers = new Set<number>();
     
-    // Generate numbers for each row
-    for (let row = 0; row < 3; row++) {
-      // Each row should have exactly 5 numbers
-      let numbersInRow = 0;
-      while (numbersInRow < 5) {
-        // For each column, numbers must be within specific ranges
-        for (let col = 0; col < 9 && numbersInRow < 5; col++) {
-          if (numbers[row][col] === null && Math.random() < 0.5) {
-            const min = col * 10;
-            const max = col === 8 ? 90 : (col + 1) * 10 - 1;
-            let num;
-            do {
-              num = Math.floor(Math.random() * (max - min + 1)) + min;
-            } while (usedNumbers.has(num));
-            
-            numbers[row][col] = num;
-            usedNumbers.add(num);
-            numbersInRow++;
-          }
-        }
-      }
-    }
-
-    // Sort numbers within each column
+    // Generate numbers for each column first
     for (let col = 0; col < 9; col++) {
-      const columnNumbers = numbers.map(row => row[col]).filter(n => n !== null) as number[];
-      columnNumbers.sort((a, b) => a - b);
-      let idx = 0;
-      for (let row = 0; row < 3; row++) {
-        if (numbers[row][col] !== null) {
-          numbers[row][col] = columnNumbers[idx++];
+      const min = col * 10;
+      const max = col === 8 ? 90 : (col + 1) * 10 - 1;
+      const columnNumbers = new Set<number>();
+      
+      // Generate at least one number for each column
+      while (columnNumbers.size < 2) {
+        const num = Math.floor(Math.random() * (max - min + 1)) + min;
+        if (!usedNumbers.has(num)) {
+          columnNumbers.add(num);
+          usedNumbers.add(num);
         }
       }
+      
+      // Assign numbers to rows in ascending order
+      const sortedNumbers = Array.from(columnNumbers).sort((a, b) => a - b);
+      let numberIndex = 0;
+      const randomRows = Array.from({length: 3}, (_, i) => i)
+        .sort(() => Math.random() - 0.5)
+        .slice(0, sortedNumbers.length);
+      
+      randomRows.forEach(row => {
+        numbers[row][col] = sortedNumbers[numberIndex++];
+      });
     }
 
     return numbers;
@@ -70,8 +63,20 @@ const AdminDashboard = () => {
 
   const generateCards = () => {
     const cards = [];
+    const start = parseInt(startSeries);
+    const end = parseInt(endSeries);
+    
+    if (isNaN(start) || isNaN(end) || start > end || start < 0 || end > 9999) {
+      toast({
+        title: "Error en Series",
+        description: "Por favor verifica el rango de series ingresado",
+        variant: "destructive"
+      });
+      return;
+    }
+
     for (let i = 0; i < quantity; i++) {
-      const serialNumber = `BV${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
+      const serialNumber = `BV${String(start + Math.floor(Math.random() * (end - start + 1))).padStart(4, '0')}`;
       const numbers = generateBingoCard();
       cards.push({ serial: serialNumber, numbers });
     }
@@ -84,16 +89,17 @@ const AdminDashboard = () => {
             <title>Cartones de Bingo</title>
             <style>
               body { background-color: ${selectedColor}; padding: 20px; font-family: Arial, sans-serif; }
-              .card { background: white; margin: 10px; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-              .numbers { display: grid; grid-template-columns: repeat(9, 1fr); gap: 5px; margin-top: 10px; }
-              .number { background: #f0f0f0; padding: 8px; text-align: center; border-radius: 4px; height: 40px; display: flex; align-items: center; justify-content: center; }
+              .card { background: white; margin: 10px auto; padding: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 400px; }
+              .numbers { display: grid; grid-template-columns: repeat(9, 1fr); gap: 2px; margin-top: 10px; }
+              .number { background: #f0f0f0; padding: 4px; text-align: center; border-radius: 4px; height: 25px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
               .empty { background: transparent; }
+              .serial { font-size: 14px; margin-bottom: 5px; }
             </style>
           </head>
           <body>
             ${cards.map(card => `
               <div class="card">
-                <h3>Serie: ${card.serial}</h3>
+                <div class="serial">Serie: ${card.serial}</div>
                 <div class="numbers">
                   ${card.numbers.map(row => 
                     row.map(num => `
@@ -238,22 +244,43 @@ const AdminDashboard = () => {
         {/* Panel de generación de cartones */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">Generar Cartones</h2>
-          <div className="flex gap-4 flex-wrap">
-            <div className="w-full md:w-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
               <label className="block text-sm font-medium mb-2">Cantidad de Cartones</label>
               <Input
                 type="number"
                 min="1"
                 value={quantity}
                 onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                className="w-full md:w-48"
               />
             </div>
             
-            <div className="w-full md:w-auto">
+            <div>
+              <label className="block text-sm font-medium mb-2">Serie Inicial (BVxxxx)</label>
+              <Input
+                type="text"
+                value={startSeries}
+                onChange={(e) => setStartSeries(e.target.value)}
+                placeholder="0000"
+                maxLength={4}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Serie Final (BVxxxx)</label>
+              <Input
+                type="text"
+                value={endSeries}
+                onChange={(e) => setEndSeries(e.target.value)}
+                placeholder="9999"
+                maxLength={4}
+              />
+            </div>
+
+            <div>
               <label className="block text-sm font-medium mb-2">Color de Fondo</label>
               <Select onValueChange={setSelectedColor} defaultValue={selectedColor}>
-                <SelectTrigger className="w-full md:w-48">
+                <SelectTrigger>
                   <SelectValue placeholder="Selecciona un color" />
                 </SelectTrigger>
                 <SelectContent>
