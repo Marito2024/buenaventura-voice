@@ -31,31 +31,42 @@ const AdminDashboard = () => {
     const numbers: (number | null)[][] = Array(3).fill(null).map(() => Array(9).fill(null));
     const usedNumbers = new Set<number>();
     
-    // Generate numbers for each column first
-    for (let col = 0; col < 9; col++) {
-      const min = col * 10;
-      const max = col === 8 ? 90 : (col + 1) * 10 - 1;
-      const columnNumbers = new Set<number>();
+    // Generate numbers for each row
+    for (let row = 0; row < 3; row++) {
+      let numbersInRow = 0;
+      const availableColumns = Array.from({length: 9}, (_, i) => i);
       
-      // Generate at least one number for each column
-      while (columnNumbers.size < 2) {
-        const num = Math.floor(Math.random() * (max - min + 1)) + min;
-        if (!usedNumbers.has(num)) {
-          columnNumbers.add(num);
-          usedNumbers.add(num);
+      // Add exactly 5 numbers per row
+      while (numbersInRow < 5) {
+        const randomColumnIndex = Math.floor(Math.random() * availableColumns.length);
+        const col = availableColumns[randomColumnIndex];
+        
+        const min = col * 10;
+        const max = col === 8 ? 90 : (col + 1) * 10 - 1;
+        let num;
+        
+        do {
+          num = Math.floor(Math.random() * (max - min + 1)) + min;
+        } while (usedNumbers.has(num));
+        
+        numbers[row][col] = num;
+        usedNumbers.add(num);
+        numbersInRow++;
+        availableColumns.splice(randomColumnIndex, 1);
+      }
+    }
+
+    // Sort numbers within each column
+    for (let col = 0; col < 9; col++) {
+      const columnNumbers = numbers.map(row => row[col]).filter(num => num !== null);
+      columnNumbers.sort((a, b) => (a || 0) - (b || 0));
+      
+      let numberIndex = 0;
+      for (let row = 0; row < 3; row++) {
+        if (numbers[row][col] !== null) {
+          numbers[row][col] = columnNumbers[numberIndex++];
         }
       }
-      
-      // Assign numbers to rows in ascending order
-      const sortedNumbers = Array.from(columnNumbers).sort((a, b) => a - b);
-      let numberIndex = 0;
-      const randomRows = Array.from({length: 3}, (_, i) => i)
-        .sort(() => Math.random() - 0.5)
-        .slice(0, sortedNumbers.length);
-      
-      randomRows.forEach(row => {
-        numbers[row][col] = sortedNumbers[numberIndex++];
-      });
     }
 
     return numbers;
@@ -91,10 +102,16 @@ const AdminDashboard = () => {
               body { background-color: ${selectedColor}; padding: 20px; font-family: Arial, sans-serif; }
               .card { background: white; margin: 10px auto; padding: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 400px; }
               .numbers { display: grid; grid-template-columns: repeat(9, 1fr); gap: 2px; margin-top: 10px; }
-              .number { background: #f0f0f0; padding: 4px; text-align: center; border-radius: 4px; height: 25px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+              .number { background: #f0f0f0; padding: 4px; text-align: center; border-radius: 4px; height: 25px; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; }
+              .number.marked { background: #ffeb3b; }
               .empty { background: transparent; }
               .serial { font-size: 14px; margin-bottom: 5px; }
             </style>
+            <script>
+              function toggleMark(element) {
+                element.classList.toggle('marked');
+              }
+            </script>
           </head>
           <body>
             ${cards.map(card => `
@@ -103,7 +120,7 @@ const AdminDashboard = () => {
                 <div class="numbers">
                   ${card.numbers.map(row => 
                     row.map(num => `
-                      <div class="number ${num === null ? 'empty' : ''}">${num ?? ''}</div>
+                      <div class="number ${num === null ? 'empty' : ''}" ${num !== null ? 'onclick="toggleMark(this)"' : ''}>${num ?? ''}</div>
                     `).join('')
                   ).join('')}
                 </div>
