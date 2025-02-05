@@ -1,10 +1,16 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useToast } from "@/components/ui/use-toast";
 
 interface BingoNumber {
   value: number | null;
   marked: boolean;
+}
+
+interface UserData {
+  email: string;
+  name: string;
 }
 
 const UserDashboard = () => {
@@ -15,6 +21,15 @@ const UserDashboard = () => {
     Array(9).fill({ value: null, marked: false }),
     Array(9).fill({ value: null, marked: false })
   ]);
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const userDataStr = localStorage.getItem("currentUser");
+    if (userDataStr) {
+      setUserData(JSON.parse(userDataStr));
+    }
+  }, []);
 
   const handleNumberClick = (rowIndex: number, colIndex: number) => {
     if (bingoCard[rowIndex][colIndex].value === null) return;
@@ -30,10 +45,25 @@ const UserDashboard = () => {
     });
   };
 
+  const handleSelectCard = () => {
+    // Aquí se podría implementar la lógica para seleccionar un cartón específico
+    toast({
+      title: "Cartón seleccionado",
+      description: "Se ha seleccionado el cartón exitosamente",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-100 to-purple-200 p-8">
       <div className="max-w-4xl mx-auto space-y-8">
-        <h1 className="text-3xl font-bold text-purple-900">Panel de Usuario</h1>
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold text-purple-900">Panel de Usuario</h1>
+          {userData && (
+            <div className="bg-white px-4 py-2 rounded-lg shadow">
+              <span className="font-medium">Bienvenido, {userData.name}</span>
+            </div>
+          )}
+        </div>
         
         {/* Panel de números actuales */}
         <Card className="p-6">
@@ -55,7 +85,12 @@ const UserDashboard = () => {
 
         {/* Cartones del usuario */}
         <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Mis Cartones</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Mis Cartones</h2>
+            <Button onClick={handleSelectCard}>
+              Seleccionar Cartón
+            </Button>
+          </div>
           <div className="max-w-md mx-auto">
             <div className="grid grid-cols-9 gap-1">
               {bingoCard.map((row, rowIndex) => 
