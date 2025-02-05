@@ -13,17 +13,20 @@ interface UserData {
   name: string;
 }
 
+interface BingoCard {
+  serial: string;
+  numbers: (number | null)[][];
+}
+
 const UserDashboard = () => {
   const [currentNumber, setCurrentNumber] = useState<number | null>(null);
   const [numberHistory, setNumberHistory] = useState<number[]>([]);
-  const [bingoCard, setBingoCard] = useState<BingoNumber[][]>([
-    Array(9).fill({ value: null, marked: false }),
-    Array(9).fill({ value: null, marked: false }),
-    Array(9).fill({ value: null, marked: false })
-  ]);
+  const [selectedCard, setSelectedCard] = useState<BingoCard | null>(null);
+  const [availableCards, setAvailableCards] = useState<BingoCard[]>([]);
   const [userData, setUserData] = useState<UserData | null>(null);
   const { toast } = useToast();
 
+  // Cargar datos del usuario
   useEffect(() => {
     const userDataStr = localStorage.getItem("currentUser");
     if (userDataStr) {
@@ -31,25 +34,40 @@ const UserDashboard = () => {
     }
   }, []);
 
-  const handleNumberClick = (rowIndex: number, colIndex: number) => {
-    if (bingoCard[rowIndex][colIndex].value === null) return;
+  // Cargar cartones disponibles
+  useEffect(() => {
+    const cards = localStorage.getItem('bingoCards');
+    if (cards) {
+      setAvailableCards(JSON.parse(cards));
+    }
+  }, []);
 
-    setBingoCard(prev => {
-      const newCard = [...prev];
-      newCard[rowIndex] = [...prev[rowIndex]];
-      newCard[rowIndex][colIndex] = {
-        ...prev[rowIndex][colIndex],
-        marked: !prev[rowIndex][colIndex].marked
-      };
-      return newCard;
-    });
-  };
+  // Escuchar cambios en los números del bingo
+  useEffect(() => {
+    const checkNumbers = () => {
+      const currentNum = localStorage.getItem('currentNumber');
+      const history = localStorage.getItem('numberHistory');
+      
+      if (currentNum) {
+        setCurrentNumber(JSON.parse(currentNum));
+      }
+      if (history) {
+        setNumberHistory(JSON.parse(history));
+      }
+    };
 
-  const handleSelectCard = () => {
-    // Aquí se podría implementar la lógica para seleccionar un cartón específico
+    // Verificar cada segundo
+    const interval = setInterval(checkNumbers, 1000);
+    checkNumbers(); // Verificar inmediatamente
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleSelectCard = (card: BingoCard) => {
+    setSelectedCard(card);
     toast({
-      title: "Cartón seleccionado",
-      description: "Se ha seleccionado el cartón exitosamente",
+      title: "Cartón Seleccionado",
+      description: `Has seleccionado el cartón con serie: ${card.serial}`,
     });
   };
 
@@ -83,37 +101,50 @@ const UserDashboard = () => {
           </div>
         </Card>
 
-        {/* Cartones del usuario */}
+        {/* Selección de cartones */}
         <Card className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Mis Cartones</h2>
-            <Button onClick={handleSelectCard}>
-              Seleccionar Cartón
-            </Button>
-          </div>
-          <div className="max-w-md mx-auto">
-            <div className="grid grid-cols-9 gap-1">
-              {bingoCard.map((row, rowIndex) => 
-                row.map((cell, colIndex) => (
-                  <button
-                    key={`${rowIndex}-${colIndex}`}
-                    onClick={() => handleNumberClick(rowIndex, colIndex)}
-                    className={`h-8 flex items-center justify-center rounded text-sm ${
-                      cell.value === null 
-                        ? 'bg-transparent cursor-default'
-                        : cell.marked
-                          ? 'bg-green-500 text-white'
-                          : 'bg-gray-100 hover:bg-gray-200'
-                    }`}
-                    disabled={cell.value === null}
-                  >
-                    {cell.value}
-                  </button>
-                ))
-              )}
-            </div>
+          <h2 className="text-xl font-semibold mb-4">Cartones Disponibles</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {availableCards.map((card, index) => (
+              <div key={index} className="border p-4 rounded-lg bg-white">
+                <p className="font-medium mb-2">Serie: {card.serial}</p>
+                <Button 
+                  onClick={() => handleSelectCard(card)}
+                  variant={selectedCard?.serial === card.serial ? "secondary" : "default"}
+                >
+                  {selectedCard?.serial === card.serial ? "Seleccionado" : "Seleccionar"}
+                </Button>
+              </div>
+            ))}
           </div>
         </Card>
+
+        {/* Cartón seleccionado */}
+        {selectedCard && (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Mi Cartón (Serie: {selectedCard.serial})</h2>
+            <div className="max-w-md mx-auto">
+              <div className="grid grid-cols-9 gap-1">
+                {selectedCard.numbers.map((row, rowIndex) => 
+                  row.map((num, colIndex) => (
+                    <div
+                      key={`${rowIndex}-${colIndex}`}
+                      className={`h-8 flex items-center justify-center rounded text-sm ${
+                        num === null 
+                          ? 'bg-transparent'
+                          : numberHistory.includes(num)
+                            ? 'bg-green-500 text-white'
+                            : 'bg-gray-100'
+                      }`}
+                    >
+                      {num}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   );

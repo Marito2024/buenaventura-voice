@@ -14,6 +14,17 @@ const AdminDashboard = () => {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
+  useEffect(() => {
+    // Cargar números del localStorage al iniciar
+    const savedHistory = localStorage.getItem('numberHistory');
+    const savedUsedNumbers = localStorage.getItem('usedNumbers');
+    const savedCurrentNumber = localStorage.getItem('currentNumber');
+    
+    if (savedHistory) setNumberHistory(JSON.parse(savedHistory));
+    if (savedUsedNumbers) setUsedNumbers(JSON.parse(savedUsedNumbers));
+    if (savedCurrentNumber) setCurrentNumber(JSON.parse(savedCurrentNumber));
+  }, []);
+
   const drawNumber = () => {
     if (usedNumbers.length === 90) {
       stopGame();
@@ -30,8 +41,16 @@ const AdminDashboard = () => {
     } while (usedNumbers.includes(newNumber));
 
     setCurrentNumber(newNumber);
-    setUsedNumbers(prev => [...prev, newNumber]);
-    setNumberHistory(prev => [newNumber, ...prev].slice(0, 10));
+    const newUsedNumbers = [...usedNumbers, newNumber];
+    const newHistory = [newNumber, ...numberHistory].slice(0, 10);
+    
+    setUsedNumbers(newUsedNumbers);
+    setNumberHistory(newHistory);
+
+    // Guardar en localStorage
+    localStorage.setItem('currentNumber', JSON.stringify(newNumber));
+    localStorage.setItem('usedNumbers', JSON.stringify(newUsedNumbers));
+    localStorage.setItem('numberHistory', JSON.stringify(newHistory));
 
     toast({
       title: "Nuevo Número",
@@ -55,6 +74,10 @@ const AdminDashboard = () => {
   const stopGame = () => {
     pauseGame();
     setGameEnded(true);
+    // Limpiar localStorage al terminar el juego
+    localStorage.removeItem('currentNumber');
+    localStorage.removeItem('usedNumbers');
+    localStorage.removeItem('numberHistory');
   };
 
   const handleGenerateCards = ({ quantity, startSeries, endSeries, selectedColor }: {
@@ -72,6 +95,11 @@ const AdminDashboard = () => {
       const numbers = generateBingoCard();
       cards.push({ serial: serialNumber, numbers });
     }
+    
+    // Guardar cartones generados en localStorage
+    const existingCards = JSON.parse(localStorage.getItem('bingoCards') || '[]');
+    const updatedCards = [...existingCards, ...cards];
+    localStorage.setItem('bingoCards', JSON.stringify(updatedCards));
     
     const newWindow = window.open('', '_blank');
     if (newWindow) {
